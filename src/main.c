@@ -69,7 +69,7 @@ void InsertE(struct Matrix* M, int i, int j, int v){
 	// Else..
 	else{
 		struct Element* tmpA = M->head,
-				      * tmpB = NULL,
+					  * tmpB = NULL,
 					  * tmpC = M->head;
 		while(tmpA != NULL && (M->n*tmpA->i+tmpA->j <= M->n*newE->i+newE->j)){
 			tmpC = tmpA;
