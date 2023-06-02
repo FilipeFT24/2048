@@ -71,6 +71,7 @@ void CreateM(M* X, int MValue, int m, int n){
 	X->sdlR   = NULL;   // Graphics fields.
 	X->sdlW   = NULL;
 }
+/*
 static void Print(M X){
 	E* tmp = X.head;
 	for(register int i = 0; i < X.m; i++){
@@ -89,7 +90,11 @@ static void Print(M X){
 	}
 	printf("\n");
 }
+*/
 static void InitMove(M* X, int n){
+
+	srand(time(NULL));
+
 	int i = 0, j = 0, k = 0; E* B = NULL;
 	int c = 0;
 	int L = 0;
@@ -97,8 +102,8 @@ static void InitMove(M* X, int n){
 		c++;
 	}
 	for(; i < n; i++){
-		if(c < NumberOfColumns*NumberOfRows){
-			L = rand()%(NumberOfColumns*NumberOfRows-c);
+		if(c < NumberOfCols*NumberOfRows){
+			L = rand()%(NumberOfCols*NumberOfRows-c);
 			B = X->head;
 			j = 0;
 			k = 0;
@@ -111,7 +116,7 @@ static void InitMove(M* X, int n){
 				}
 				k++;
 			}
-			InsertE(X,(k-1)/NumberOfColumns,(k-1)%NumberOfColumns,rand()%2 ? 2:4);
+			InsertE(X,(k-1)/NumberOfCols,(k-1)%NumberOfCols,rand()%2 ? 2:4);
 		}
 		c++;
 	}
@@ -129,7 +134,7 @@ static void AddV(M** X, E** A, E** B){
 	(*B)->v            = (*A)->v+(*B)->v;
 	// Detach and delete *A.
 	(*A)->prev != NULL ? (*A)->prev->next = (*A)->next : ((*X)->head = (*A)->next);
-	(*A)->next != NULL ? (*A)->next->prev = (*A)->prev : ((*X)->tail = (*A)->prev); free(*A); *A = *B; *B =  NULL;
+	(*A)->next != NULL ? (*A)->next->prev = (*A)->prev : ((*X)->tail = (*A)->prev); free(*A); *A = *B; *B = NULL;
 }
 static void ShiftN(M** X, E** A, E** B){
 	// Detach *A.
@@ -404,15 +409,10 @@ static bool SDL_Open(M* X){
 	}
 	return bflag;
 }
-/*
 static void SDL_Close(M* X){
 	SDL_DestroyWindow(X->sdlW);X->sdlW = NULL;
     TTF_Quit();
 	SDL_Quit();
-}
-static void SDL_Clear(M* X){
-	SDL_SetRenderDrawColor(X->sdlR,Bc[0].r,Bc[0].g,Bc[0].b,Bc[0].a);
-	SDL_RenderClear       (X->sdlR);
 }
 static void SDL_Fill(M* X, TTF_Font* Font, const char* Text, SDL_Rect r, SDL_Color Color){
     SDL_Surface* SurfMessage = TTF_RenderText_Blended      (Font,Text,Color);
@@ -427,14 +427,47 @@ static void SDL_Fill(M* X, TTF_Font* Font, const char* Text, SDL_Rect r, SDL_Col
     SDL_DestroyTexture(    Message);
     SDL_FreeSurface   (SurfMessage);
 }
-*/
 
 
 
+static void SDL_Print(M* X, TTF_Font* Font){
+    char str[MAXSIZE];
+    int k = 0;
 
 
 
+    SDL_Rect sq;
 
+	E* A = X->head;
+    for(int i = 0; i < X->m; i++){
+    	for(int j = 0; j < X->n; j++){
+    		// Square dimensions.
+    	    sq.x = SCREEN_PAD+j*(sizeW+SCREEN_PAD);
+    	    sq.y = SCREEN_PAD+i*(sizeH+SCREEN_PAD);
+    	    sq.w = sizeW;
+    	    sq.h = sizeH;
+    	    // Render square.
+    		if(A != NULL && (A->i == i && A->j == j)){
+    			k = log2(A->v);
+    			sprintf(str,"%d",A->v);
+
+        	    SDL_SetRenderDrawColor(X->sdlR,TBc[k].r,TBc[k].g,TBc[k].b,TBc[k].a);
+        	    SDL_RenderFillRect    (X->sdlR,&sq);
+    			SDL_Fill              (X,Font,str,sq,TVc[k]);
+
+
+
+    			A = A->next;
+    		}
+    		else{
+        	    SDL_SetRenderDrawColor(X->sdlR,TBc[0].r,TBc[0].g,TBc[0].b,TBc[0].a);
+        	    SDL_RenderFillRect    (X->sdlR,&sq);
+    		}
+    	}
+    }
+    SDL_RenderPresent(X->sdlR);
+    SDL_Delay(0100);
+}
 void gLoop(M* X){
 	if(!SDL_Open(X)){
 		exit(0);
@@ -445,71 +478,29 @@ void gLoop(M* X){
 	    	printf("Couldn't initialize SDL TTF: %s\n",SDL_GetError()); exit(1);
 	    }
 	    else{
+	    	// Clear.
+	        SDL_SetRenderDrawColor(X->sdlR,Bc[0].r,Bc[0].g,Bc[0].b,Bc[0].a);
+	        SDL_RenderClear       (X->sdlR);
+	    	// Verify...
+	        assert(MAXT >= 0 && MAXT < NumberOfRows*NumberOfCols);
 
-	        srand(time(NULL));
 
 
-	        assert(MAXT >= 0 && MAXT < NumberOfRows*NumberOfColumns);
-
-
-	        for(int k = 0; k < 5; k++){
+	        int k = 0;
+	        for(k = 0; k < 25; k++){
 	        	if(k == 0){
 	        		InitMove(X,2);
 	        	}
 	        	else{
 	        		InitMove(X,1);
 	        	}
-	        	Print(*X);
-	        	Slide(X,rand()%4);
-	        	Print(*X);
-	        }
-
-
-	        /*
-	        int size = (SCREEN_WIDTH-SCREEN_PAD)/X->n-SCREEN_PAD;
-
-	        char str[MAXSIZE];
-	        int k = 0;
-
-	    	SDL_Clear(X);
-
-	        SDL_Rect sq;
-
-	    	E* A = X->head;
-	        for(int i = 0; i < X->m; i++){
-	        	for(int j = 0; j < X->n; j++){
-	        		// Square dimensions.
-	        	    sq.x = SCREEN_PAD+j*(size+SCREEN_PAD);
-	        	    sq.y = SCREEN_PAD+i*(size+SCREEN_PAD);
-	        	    sq.w = size;
-	        	    sq.h = size;
-	        	    // Render square.
-	        		if(A != NULL && (A->i == i && A->j == j)){
-	        			k = log2(A->v);
-	        			sprintf(str,"%d",A->v);
-
-	            	    SDL_SetRenderDrawColor(X->sdlR,TBc[k].r,TBc[k].g,TBc[k].b,TBc[k].a);
-	            	    SDL_RenderFillRect    (X->sdlR,&sq);
-	        			SDL_Fill              (X,Font,str,sq,TVc[k]);
-
-
-
-	        			A = A->next;
-	        		}
-	        		else{
-	            	    SDL_SetRenderDrawColor(X->sdlR,TBc[0].r,TBc[0].g,TBc[0].b,TBc[0].a);
-	            	    SDL_RenderFillRect    (X->sdlR,&sq);
-	        		}
-	        	}
-	        }
-	        SDL_RenderPresent(X->sdlR);
+	        	SDL_Print(X,Font);
+	        	Slide    (X,rand()%4);
+	        	SDL_Print(X,Font);
+	       }
 	        TTF_CloseFont    (Font);
 	        Font = NULL;
-
-	        SDL_Delay(3500);
-
 	        SDL_Close(X);
-	        */
 	    }
 	}
 }

@@ -2,6 +2,6 @@
 
 int main(void){
     M X;
-    CreateM(&X,MaximumValue,NumberOfRows,NumberOfColumns);
+    CreateM(&X,MaximumValue,NumberOfRows,NumberOfCols);
     gLoop  (&X);
 }
