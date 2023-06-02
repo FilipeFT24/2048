@@ -1,11 +1,22 @@
+#define  SDL_MAIN_HANDLED
+#define  MaximumValue     2048 // Doubly linked list (DLL) variables.
+#define  MAXT                2
+#define  NumberOfColumns     4
+#define  NumberOfRows        4
+#define  MAXSIZE            15 // Graphics fields.
+#define  SCREEN_HEIGHT     500
+#define  SCREEN_WIDTH      500
+#define  SCREEN_PAD         10
 #define  length(v) sizeof(v)/sizeof(v[0])
-#define  MaximumValue  2048
-#define  NumberColumns    4
-#define  NumberRows       4
 #include <assert.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include "SDL.h"
+#include "SDL_ttf.h"
 
 typedef struct Element{
 	int i;
@@ -23,9 +34,15 @@ typedef struct Matrix{
 	int  n;
 	struct Element* head;
 	struct Element* tail;
+	SDL_Renderer*   sdlR;
+	SDL_Window*     sdlW;
 }M;
+typedef struct Color{
+    char r;
+    char g;
+    char b;
+    char a;
+}COLOR;
 
-void InsertE(M*, int, int, int);
 void CreateM(M*, int, int, int);
-void Slide  (M*, char);
-void Print  (M);
+void gLoop  (M*);
