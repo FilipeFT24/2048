@@ -3,5 +3,8 @@
 int main(void){
     M X;
     CreateM(&X,MaximumValue,NumberOfRows,NumberOfCols);
+
+    srand(time(NULL));
+
     gLoop  (&X);
 }

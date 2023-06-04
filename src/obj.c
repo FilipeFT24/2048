@@ -33,6 +33,9 @@ static void InsertE(M* X, int i, int j, int v){
 			B = A;
 			A = A->next;
 		}
+		if(B->i == N->i && B->j == N->j){
+			exit(1);
+		}
 		N->prev = B; B != NULL ? B->next = N : (X->head = N);
 		N->next = A; A != NULL ? A->prev = N : (X->tail = N);
 		/*
@@ -58,7 +61,7 @@ static void InsertE(M* X, int i, int j, int v){
 // 'Matrix' structure function(s).
 void CreateM(M* X, int MValue, int m, int n){
 	// Assign fields.
-	for(int j = 0; j < length(X->VMoves); j++){
+	for(register int j = 0; j < length(X->VMoves); j++){
 		X->VMoves[j] = false;
 	}
 	X->MValue = MValue; // Doubly linked list (DLL) fields.
@@ -71,15 +74,15 @@ void CreateM(M* X, int MValue, int m, int n){
 	X->sdlR   = NULL;   // Graphics fields.
 	X->sdlW   = NULL;
 }
-/*
+// ...to print.
 static void Print(M X){
-	E* tmp = X.head;
+	E* A = X.head;
 	for(register int i = 0; i < X.m; i++){
 		for(register int j = 0; j < X.n; j++){
-			if(tmp != NULL && (tmp->i == i && tmp->j == j)){
-				printf("%4d|",tmp->v);
-				if(tmp->next != NULL){
-					tmp = tmp->next;
+			if(A != NULL && (A->i == i && A->j == j)){
+				printf("%4d|",A->v);
+				if(A->next != NULL){
+					A = A->next;
 				}
 			}
 			else{
@@ -90,38 +93,118 @@ static void Print(M X){
 	}
 	printf("\n");
 }
-*/
-static void InitMove(M* X, int n){
-
-	srand(time(NULL));
-
-	int i = 0, j = 0, k = 0; E* B = NULL;
-	int c = 0;
-	int L = 0;
-	for(E* A = X->head; A != NULL; A = A->next){
-		c++;
+// ...to check whether a given move is valid.
+static void ValidN(M* X){
+	if(X->head == NULL){
+		exit(1);
 	}
-	for(; i < n; i++){
-		if(c < NumberOfCols*NumberOfRows){
-			L = rand()%(NumberOfCols*NumberOfRows-c);
-			B = X->head;
-			j = 0;
-			k = 0;
-			while(j <= L){
-				if(B != NULL && k == X->n*B->i+B->j){
-					B = B->next;
-				}
-				else{
-					j++;
-				}
-				k++;
+	register int i = 0;
+	register int j = 0;
+	E* A = NULL;
+	E* B = NULL;
+	for(j = 0; j < X->n; j++){
+		i = 0;
+		for(A = X->head; A != NULL && A->j != j; A = A->next){}; if(A == NULL) continue;
+		for( ; ; ){
+			B = A->next;
+			while(B != NULL && B->j != j){
+				B = B->next;
 			}
-			InsertE(X,(k-1)/NumberOfCols,(k-1)%NumberOfCols,rand()%2 ? 2:4);
+			if(B != NULL){
+				if(A->v == B->v || B->i > i+1){
+					X->VMoves[0] = true;
+					return;
+				}
+				A = B;
+				i++;
+			}
+			else{
+				if(A->i > i){
+					X->VMoves[0] = true;
+					return;
+				}
+				break;
+			}
 		}
-		c++;
 	}
 }
-// Sliding function(s).
+static void ValidS(M* X){
+	if(X->head == NULL){
+		exit(1);
+	}
+	register int i = X->m-1;
+	register int j = X->n-1;
+	E* A = NULL;
+	E* B = NULL;
+	for(j = X->n-1; j >= 0; j--){
+		i = X->m-1;
+		for(A = X->tail; A != NULL && A->j != j; A = A->prev){}; if(A == NULL) continue;
+		for( ; ; ){
+			B = A->prev;
+			while(B != NULL && B->j != j){
+				B = B->prev;
+			}
+			if(B != NULL){
+				if(A->v == B->v || B->i < i-1){
+					X->VMoves[1] = true;
+					return;
+				}
+				A = B;
+				i--;
+			}
+			else{
+				if(A->i < i){
+					X->VMoves[1] = true;
+					return;
+				}
+				break;
+			}
+		}
+	}
+}
+static void ValidE(M* X){
+	if(X->head == NULL){
+		exit(1);
+	}
+	register int i = X->m-1;
+	register int j = X->n-1;
+	for(E* A = X->tail; A != NULL; ){
+		if(A->i == i){
+			if(A->j < j || (A->prev != NULL && (A->prev->i == i && A->v == A->prev->v))){
+				X->VMoves[2] = true;
+				return;
+			}
+			A = A->prev;
+			j--;
+		}
+		else{
+			i--;
+			j = X->n-1;
+		}
+	}
+}
+static void ValidW(M* X){
+	if(X->head == NULL){
+		exit(1);
+	}
+	register int i = 0;
+	register int j = 0;
+	for(E* A = X->head; A != NULL; ){
+		if(A->i == i){
+			if(A->j > j || (A->next != NULL && (A->next->i == i && A->v == A->next->v))){
+				X->VMoves[3] = true;
+				return;
+			}
+			A = A->next;
+			j++;
+		}
+		else{
+			i++;
+			j = 0;
+		}
+	}
+}
+// Sliding functions.
 static void AddH(M** X, E** A, E** B){
 	// Increment *B.v.
 	(*B)->v            = (*A)->v+(*B)->v;
@@ -165,20 +248,13 @@ static void SlideN(M* X){
 	E* C = NULL;
 	E* D = NULL;
 	// For each column....
-	for(int j = 0; j < X->n; j++){
+	for(register int j = 0; j < X->n; j++){
 		// Set *A to the first element (or node) of column j.
-		A = X->head;
-		while(A != NULL && A->j != j){
-			A = A->next;
-		}
-		// If empty (column), continue...
-		if(A == NULL){
-			continue;
-		}
+		for(A = X->head; A != NULL && A->j != j; A = A->next){}; if(A == NULL) continue;
 		B = A;
 		C = NULL;
 		D = NULL;
-		for(int i = 0; i < X->m; i++){
+		for(register int i = 0; i < X->m; i++){
 			// Set *B to the "next" element (or node) of column j.
 			while(B->next != NULL && !(B->i >= i && B->j == j)){
 				B = B->next;
@@ -220,21 +296,14 @@ static void SlideS(M* X){
 	E* C = NULL;
 	E* D = NULL;
 	// For each column....
-	for(int j = 0; j < X->n; j++){
+	for(register int j = 0; j < X->n; j++){
 		// Set *A to the last element (or node) of column j.
-		A = X->tail;
-		while(A != NULL && A->j != j){
-			A = A->prev;
-		}
-		// If empty (column), continue...
-		if(A == NULL){
-			continue;
-		}
+		for(A = X->tail; A != NULL && A->j != j; A = A->prev){}; if(A == NULL) continue;
 		B = A;
 		C = NULL;
 		D = NULL;
-		for(int i = 0; i < X->m; i++){
-			// Set *B to the "previous" element (or node) of column j.
+		for(register int i = 0; i < X->m; i++){
+			// Set *B to the "prev" element (or node) of column j.
 			while(B->prev != NULL && !(B->i <= X->m-1-i && B->j == j)){
 				B = B->prev;
 			}
@@ -270,7 +339,7 @@ static void SlideE(M* X){
 	if(X->head == NULL){
 		exit(1);
 	}
-	if(X->head->next != NULL){
+	if(X->head != X->tail){
 		E* A = X->head;
 		E* B = NULL;
 		while(A->next != NULL){
@@ -278,14 +347,14 @@ static void SlideE(M* X){
 			A = A->next;
 			if(A->i == B->i && A->v == B->v){
 				AddH(&X,&A,&B);
-			}
-			if(A == NULL){
-				break;
+				if(A == NULL){
+					break;
+				}
 			}
 		}
 	}
-	int i = X->m-1;
-	int j = X->n-1;
+	register int i = X->m-1;
+	register int j = X->n-1;
 	for(E* C = X->tail; C != NULL; ){
 		if(C->i == i){
 			if(C->j < j){
@@ -304,7 +373,7 @@ static void SlideW(M* X){
 	if(X->head == NULL){
 		exit(1);
 	}
-	if(X->head->next != NULL){
+	if(X->head != X->tail){
 		E* A = X->head;
 		E* B = NULL;
 		while(A->next != NULL){
@@ -312,14 +381,14 @@ static void SlideW(M* X){
 			A = A->next;
 			if(A->i == B->i && A->v == B->v){
 				AddH(&X,&A,&B);
-			}
-			if(A == NULL){
-				break;
+				if(A == NULL){
+					break;
+				}
 			}
 		}
 	}
-	int i = 0;
-	int j = 0;
+	register int i = 0;
+	register int j = 0;
 	for(E* C = X->head; C != NULL; ){
 		if(C->i == i){
 			if(C->j > j){
@@ -347,6 +416,40 @@ static void Slide(M* X, int C){
 		default:
 			return;
 	}
+}
+static void InitMove(M* X, int n){
+	/*
+	register int i = 0, j = 0, k = 0; E* B = NULL;
+	register int c = 0;
+	register int L = 0;
+	for(E* A = X->head; A != NULL; A = A->next){
+		c++;
+	}
+	for(; i < n; i++){
+		if(c < NumberOfCols*NumberOfRows){
+			L = rand()%(NumberOfCols*NumberOfRows-c);
+			B = X->head;
+			j = 0;
+			k = 0;
+			while(j <= L){
+				if(B != NULL && k == X->n*B->i+B->j){
+					B = B->next;
+				}
+				else{
+					j++;
+				}
+				k++;
+			}
+			InsertE(X,(k-1)/NumberOfCols,(k-1)%NumberOfCols,rand()%2 ? 2:4);
+		}
+		c++;
+	}
+	*/
+
+	n++;
+
+	InsertE(X,0,0,2);
+	InsertE(X,0,1,2);
 }
 
 // Graphics function(s).
@@ -381,6 +484,20 @@ COLOR TBc[] = {
 	{237,197, 63,255}, //  1024.
 	{237,194, 46,255}  //  2048.
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
 static bool SDL_Open(M* X){
 	bool bflag = false;
 	if(TTF_Init() < 0){
@@ -468,7 +585,9 @@ static void SDL_Print(M* X, TTF_Font* Font){
     SDL_RenderPresent(X->sdlR);
     SDL_Delay(0100);
 }
+*/
 void gLoop(M* X){
+	/*
 	if(!SDL_Open(X)){
 		exit(0);
 	}
@@ -483,24 +602,26 @@ void gLoop(M* X){
 	        SDL_RenderClear       (X->sdlR);
 	    	// Verify...
 	        assert(MAXT >= 0 && MAXT < NumberOfRows*NumberOfCols);
-
+	*/
 
 
 	        int k = 0;
-	        for(k = 0; k < 25; k++){
+	        for(k = 0; k < 1; k++){
 	        	if(k == 0){
 	        		InitMove(X,2);
 	        	}
 	        	else{
 	        		InitMove(X,1);
 	        	}
-	        	SDL_Print(X,Font);
-	        	Slide    (X,rand()%4);
-	        	SDL_Print(X,Font);
+	        	Print(*X);
+	        	Slide( X,2);
+	        	Print(*X);
 	       }
+	/*
 	        TTF_CloseFont    (Font);
 	        Font = NULL;
 	        SDL_Close(X);
 	    }
 	}
+	*/
 }
