@@ -1,6 +1,5 @@
 #define  SDL_MAIN_HANDLED
 #define  MaximumValue     2048 // Doubly linked list (DLL) variables.
-#define  MAXT                2
 #define  NumberOfCols        4
 #define  NumberOfRows        4
 #define  MAXSIZE            15 // Graphics fields.
@@ -47,4 +46,4 @@ typedef struct Color{
 }COLOR;
 
 void CreateM(M*, int, int, int);
-void gLoop  (M*);
+void GLoop  (M*);

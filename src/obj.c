@@ -33,29 +33,11 @@ static void InsertE(M* X, int i, int j, int v){
 			B = A;
 			A = A->next;
 		}
-		if(B->i == N->i && B->j == N->j){
+		if(B != NULL && (B->i == N->i && B->j == N->j)){
 			exit(1);
 		}
 		N->prev = B; B != NULL ? B->next = N : (X->head = N);
 		N->next = A; A != NULL ? A->prev = N : (X->tail = N);
-		/*
-		E* A = X->head;
-		E* B = NULL;
-		E* C = X->head;
-		while(A != NULL && X->n*A->i+A->j <= X->n*N->i+N->j){
-			C = A;
-			B = A;
-			A = A->next;
-		}
-		if(C->i == N->i && C->j == N->j){
-			C->v = N->v;
-			free(N);
-		}
-		else{
-			N->prev = B; B != NULL ? B->next = N : (X->head = N);
-			N->next = A; A != NULL ? A->prev = N : (X->tail = N);
-		}
-		*/
 	}
 }
 // 'Matrix' structure function(s).
@@ -74,7 +56,7 @@ void CreateM(M* X, int MValue, int m, int n){
 	X->sdlR   = NULL;   // Graphics fields.
 	X->sdlW   = NULL;
 }
-// ...to print.
+/*
 static void Print(M X){
 	E* A = X.head;
 	for(register int i = 0; i < X.m; i++){
@@ -93,7 +75,8 @@ static void Print(M X){
 	}
 	printf("\n");
 }
-// ...to check whether a given move is valid.
+*/
+// Check whether a given move is valid.
 static void ValidN(M* X){
 	if(X->head == NULL){
 		exit(1);
@@ -106,20 +89,20 @@ static void ValidN(M* X){
 		i = 0;
 		for(A = X->head; A != NULL && A->j != j; A = A->next){}; if(A == NULL) continue;
 		for( ; ; ){
-			B = A->next;
-			while(B != NULL && B->j != j){
-				B = B->next;
+			B = A;
+			A = A->next;
+			while(A != NULL && A->j != j){
+				A = A->next;
 			}
-			if(B != NULL){
-				if(A->v == B->v || B->i > i+1){
+			if(A != NULL){
+				if(A->v == B->v || A->i > i+1){
 					X->VMoves[0] = true;
 					return;
 				}
-				A = B;
 				i++;
 			}
 			else{
-				if(A->i > i){
+				if(B->i > i){
 					X->VMoves[0] = true;
 					return;
 				}
@@ -140,20 +123,20 @@ static void ValidS(M* X){
 		i = X->m-1;
 		for(A = X->tail; A != NULL && A->j != j; A = A->prev){}; if(A == NULL) continue;
 		for( ; ; ){
-			B = A->prev;
-			while(B != NULL && B->j != j){
-				B = B->prev;
+			B = A;
+			A = A->prev;
+			while(A != NULL && A->j != j){
+				A = A->prev;
 			}
-			if(B != NULL){
-				if(A->v == B->v || B->i < i-1){
+			if(A != NULL){
+				if(A->v == B->v || A->i < i-1){
 					X->VMoves[1] = true;
 					return;
 				}
-				A = B;
 				i--;
 			}
 			else{
-				if(A->i < i){
+				if(B->i < i){
 					X->VMoves[1] = true;
 					return;
 				}
@@ -212,76 +195,84 @@ static void AddH(M** X, E** A, E** B){
 	(*A)->prev != NULL ? (*A)->prev->next = (*A)->next : ((*X)->head = (*A)->next);
 	(*A)->next != NULL ? (*A)->next->prev = (*A)->prev : ((*X)->tail = (*A)->prev); free(*A); *A = (*B)->next;
 }
-static void AddV(M** X, E** A, E** B){
+static void AddN(M** X, E** A, E** B, int j){
+	// Repeat (routine)...
+	AddH(X,A,B);
+	// Set to...
+	while(*A != NULL && (*A)->j != j){
+		*A = (*A)->next;
+	}
+}
+static void AddS(M** X, E** A, E** B, int j){
 	// Increment *B.v.
 	(*B)->v            = (*A)->v+(*B)->v;
 	// Detach and delete *A.
 	(*A)->prev != NULL ? (*A)->prev->next = (*A)->next : ((*X)->head = (*A)->next);
-	(*A)->next != NULL ? (*A)->next->prev = (*A)->prev : ((*X)->tail = (*A)->prev); free(*A); *A = *B; *B = NULL;
+	(*A)->next != NULL ? (*A)->next->prev = (*A)->prev : ((*X)->tail = (*A)->prev); free(*A); *A = (*B)->prev;
+	// Set to...
+	while(*A != NULL && (*A)->j != j){
+		*A = (*A)->prev;
+	}
 }
-static void ShiftN(M** X, E** A, E** B){
-	// Detach *A.
-	(*A)->prev != NULL ? (*A)->prev->next = (*A)->next : ((*X)->head = (*A)->next); // Redundant else statement.
-	(*A)->next != NULL ? (*A)->next->prev = (*A)->prev : ((*X)->tail = (*A)->prev);
-	// Re-attach *A (new *B.prev).
-	(*A)->prev         = (*B)->prev;
-	(*A)->next         = (*B);
-	(*B)->prev != NULL ? (*B)->prev->next = (*A)       : ((*X)->head = (*A));
-	(*B)->prev         = (*A);
+static void ShiftN(M** X, E** A, E** B, int i){
+	if(*B != NULL && (*X)->n*(*B)->i+(*B)->j > (*X)->n*i+(*A)->j){
+		// Detach *A.
+		(*A)->prev != NULL ? (*A)->prev->next = (*A)->next : ((*X)->head = (*A)->next); // Redundant else statement.
+		(*A)->next != NULL ? (*A)->next->prev = (*A)->prev : ((*X)->tail = (*A)->prev);
+		// Re-attach *A (new *B.prev).
+		(*A)->prev         = (*B)->prev;
+		(*A)->next         = (*B);
+		(*B)->prev != NULL ? (*B)->prev->next = (*A)       : ((*X)->head = (*A));
+		(*B)->prev         = (*A);
+	}
+	// Set to...
+	(*A)->i = i;
+	(*B)    = NULL;
 }
-static void ShiftS(M** X, E** A, E** B){
-	// Detach *A.
-	(*A)->prev != NULL ? (*A)->prev->next = (*A)->next : ((*X)->head = (*A)->next);
-	(*A)->next != NULL ? (*A)->next->prev = (*A)->prev : ((*X)->tail = (*A)->prev); // Redundant else statement.
-	// Re-attach *A (new *B.next).
-	(*A)->prev         = (*B);
-	(*A)->next         = (*B)->next;
-	(*B)->next != NULL ? (*B)->next->prev = (*A)       : ((*X)->tail = (*A));
-	(*B)->next         = (*A);
+static void ShiftS(M** X, E** A, E** B, int i){
+	if(*B != NULL && (*X)->n*(*B)->i+(*B)->j < (*X)->n*i+(*A)->j){
+		// Detach *A.
+		(*A)->prev != NULL ? (*A)->prev->next = (*A)->next : ((*X)->head = (*A)->next);
+		(*A)->next != NULL ? (*A)->next->prev = (*A)->prev : ((*X)->tail = (*A)->prev); // Redundant else statement.
+		// Re-attach *A (new *B.next).
+		(*A)->prev         = (*B);
+		(*A)->next         = (*B)->next;
+		(*B)->next != NULL ? (*B)->next->prev = (*A)       : ((*X)->tail = (*A));
+		(*B)->next         = (*A);
+	}
+	// Set to...
+	(*A)->i = i;
+	(*B)    = NULL;
 }
 static void SlideN(M* X){
 	if(X->head == NULL){
 		exit(1);
 	}
-	E* A = X->head;
+	register int i = 0;
+	register int j = 0;
+	E* A = NULL;
 	E* B = NULL;
 	E* C = NULL;
-	E* D = NULL;
-	// For each column....
-	for(register int j = 0; j < X->n; j++){
-		// Set *A to the first element (or node) of column j.
+	for(j = 0; j < X->n; j++){
+		i = 0;
 		for(A = X->head; A != NULL && A->j != j; A = A->next){}; if(A == NULL) continue;
-		B = A;
-		C = NULL;
-		D = NULL;
-		for(register int i = 0; i < X->m; i++){
-			// Set *B to the "next" element (or node) of column j.
-			while(B->next != NULL && !(B->i >= i && B->j == j)){
-				B = B->next;
+		for( ; ; ){
+			B = A;
+			A = A->next;
+			while(A != NULL && A->j != j){
+				A = A->next;
 			}
-			// If *B.j=j...
-			if(B->j == j){
-				if(C != NULL && B->v == C->v){
-					if(B != C){
-						AddV(&X,&B,&C);
-						i--;
-					}
-				}
-				else{
-					D = B;
-					while(D->prev != NULL && X->n*D->prev->i+D->prev->j > X->n*i+j){
-						D = D->prev;
-					}
-					if(B != D){
-						ShiftN(&X,&B,&D);
-					}
-					B->i = i;
-					C    = B;
-					D    = NULL;
-				}
+			if(A != NULL && A->v == B->v){
+				AddN(&X,&A,&B,j);
 			}
-			// Else, break...
-			else{
+			if(B->i > i){
+				if(B->prev != NULL){
+					for(C = B->prev; C->prev != NULL && X->n*C->prev->i+C->prev->j > X->n*i+j; C = C->prev){};
+				}
+				ShiftN(&X,&B,&C,i);
+			}
+			i++;
+			if(A == NULL){
 				break;
 			}
 		}
@@ -291,45 +282,31 @@ static void SlideS(M* X){
 	if(X->head == NULL){
 		exit(1);
 	}
-	E* A = X->tail;
+	register int i = X->m-1;
+	register int j = X->n-1;
+	E* A = NULL;
 	E* B = NULL;
 	E* C = NULL;
-	E* D = NULL;
-	// For each column....
-	for(register int j = 0; j < X->n; j++){
-		// Set *A to the last element (or node) of column j.
+	for(j = X->n-1; j >= 0; j--){
+		i = X->m-1;
 		for(A = X->tail; A != NULL && A->j != j; A = A->prev){}; if(A == NULL) continue;
-		B = A;
-		C = NULL;
-		D = NULL;
-		for(register int i = 0; i < X->m; i++){
-			// Set *B to the "prev" element (or node) of column j.
-			while(B->prev != NULL && !(B->i <= X->m-1-i && B->j == j)){
-				B = B->prev;
+		for( ; ; ){
+			B = A;
+			A = A->prev;
+			while(A != NULL && A->j != j){
+				A = A->prev;
 			}
-			// If *B.j=j...
-			if(B->j == j){
-				if(C != NULL && B->v == C->v){
-					if(B != C){
-						AddV(&X,&B,&C);
-						i--;
-					}
-				}
-				else{
-					D = B;
-					while(D->next != NULL && X->n*D->next->i+D->next->j < X->n*(X->m-1-i)+j){
-						D = D->next;
-					}
-					if(B != D){
-						ShiftS(&X,&B,&D);
-					}
-					B->i = X->m-1-i;
-					C    = B;
-					D    = NULL;
-				}
+			if(A != NULL && A->v == B->v){
+				AddS(&X,&A,&B,j);
 			}
-			// Else, break...
-			else{
+			if(B->i < i){
+				if(B->next != NULL){
+					for(C = B->next; C->next != NULL && X->n*C->next->i+C->next->j < X->n*i+j; C = C->next){};
+				}
+				ShiftS(&X,&B,&C,i);
+			}
+			i--;
+			if(A == NULL){
 				break;
 			}
 		}
@@ -347,9 +324,9 @@ static void SlideE(M* X){
 			A = A->next;
 			if(A->i == B->i && A->v == B->v){
 				AddH(&X,&A,&B);
-				if(A == NULL){
-					break;
-				}
+			}
+			if(A == NULL){
+				break;
 			}
 		}
 	}
@@ -381,9 +358,9 @@ static void SlideW(M* X){
 			A = A->next;
 			if(A->i == B->i && A->v == B->v){
 				AddH(&X,&A,&B);
-				if(A == NULL){
-					break;
-				}
+			}
+			if(A == NULL){
+				break;
 			}
 		}
 	}
@@ -403,6 +380,54 @@ static void SlideW(M* X){
 		}
 	}
 }
+static bool gLoop(M* X){
+	// Initialise...
+	register int i = 0, j = 0, k = 0, l = 0; register bool bflag = false; E* A = NULL;
+	register int c = 0, n = 0;
+	if(X->MCount == 0){
+		n = 2; // Start (or beggining) of the game.
+	}
+	else{
+		n = 1; // Otherwise.
+	}
+	for(A = X->head; A != NULL; A = A->next){
+		c++;
+	}
+	for(i = 0; i < n; i++){
+		if(c < NumberOfCols*NumberOfRows){
+			A = X->head;
+			j = 0;
+			k = 0;
+			l = rand()%(NumberOfCols*NumberOfRows-c);
+			while(j <= l){
+				if(A != NULL && k == X->n*A->i+A->j){
+					A = A->next;
+				}
+				else{
+					j++;
+				}
+				k++;
+			}
+			InsertE(X,(k-1)/NumberOfCols,(k-1)%NumberOfCols,rand()%2 ? 2:4);
+		}
+		c++;
+	}
+	// Check valid moves...
+	for(i = 0; i < length(X->VMoves); i++){
+		X->VMoves[i] = false;
+	}
+	ValidN(X);
+	ValidS(X);
+	ValidE(X);
+	ValidW(X);
+	for(i = 0; i < length(X->VMoves); i++){
+		if(X->VMoves[i]){
+			bflag = true;
+			break;
+		}
+	}
+	return bflag;
+}
 static void Slide(M* X, int C){
 	switch(C){
 		case 0: SlideN(X); // Up.
@@ -416,40 +441,6 @@ static void Slide(M* X, int C){
 		default:
 			return;
 	}
-}
-static void InitMove(M* X, int n){
-	/*
-	register int i = 0, j = 0, k = 0; E* B = NULL;
-	register int c = 0;
-	register int L = 0;
-	for(E* A = X->head; A != NULL; A = A->next){
-		c++;
-	}
-	for(; i < n; i++){
-		if(c < NumberOfCols*NumberOfRows){
-			L = rand()%(NumberOfCols*NumberOfRows-c);
-			B = X->head;
-			j = 0;
-			k = 0;
-			while(j <= L){
-				if(B != NULL && k == X->n*B->i+B->j){
-					B = B->next;
-				}
-				else{
-					j++;
-				}
-				k++;
-			}
-			InsertE(X,(k-1)/NumberOfCols,(k-1)%NumberOfCols,rand()%2 ? 2:4);
-		}
-		c++;
-	}
-	*/
-
-	n++;
-
-	InsertE(X,0,0,2);
-	InsertE(X,0,1,2);
 }
 
 // Graphics function(s).
@@ -484,20 +475,6 @@ COLOR TBc[] = {
 	{237,197, 63,255}, //  1024.
 	{237,194, 46,255}  //  2048.
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
 static bool SDL_Open(M* X){
 	bool bflag = false;
 	if(TTF_Init() < 0){
@@ -545,13 +522,9 @@ static void SDL_Fill(M* X, TTF_Font* Font, const char* Text, SDL_Rect r, SDL_Col
     SDL_FreeSurface   (SurfMessage);
 }
 
-
-
 static void SDL_Print(M* X, TTF_Font* Font){
     char str[MAXSIZE];
     int k = 0;
-
-
 
     SDL_Rect sq;
 
@@ -572,8 +545,6 @@ static void SDL_Print(M* X, TTF_Font* Font){
         	    SDL_RenderFillRect    (X->sdlR,&sq);
     			SDL_Fill              (X,Font,str,sq,TVc[k]);
 
-
-
     			A = A->next;
     		}
     		else{
@@ -583,11 +554,9 @@ static void SDL_Print(M* X, TTF_Font* Font){
     	}
     }
     SDL_RenderPresent(X->sdlR);
-    SDL_Delay(0100);
+    SDL_Delay(2000);
 }
-*/
-void gLoop(M* X){
-	/*
+void GLoop(M* X){
 	if(!SDL_Open(X)){
 		exit(0);
 	}
@@ -600,28 +569,41 @@ void gLoop(M* X){
 	    	// Clear.
 	        SDL_SetRenderDrawColor(X->sdlR,Bc[0].r,Bc[0].g,Bc[0].b,Bc[0].a);
 	        SDL_RenderClear       (X->sdlR);
-	    	// Verify...
-	        assert(MAXT >= 0 && MAXT < NumberOfRows*NumberOfCols);
-	*/
 
 
-	        int k = 0;
-	        for(k = 0; k < 1; k++){
-	        	if(k == 0){
-	        		InitMove(X,2);
-	        	}
-	        	else{
-	        		InitMove(X,1);
-	        	}
-	        	Print(*X);
-	        	Slide( X,2);
-	        	Print(*X);
-	       }
-	/*
-	        TTF_CloseFont    (Font);
-	        Font = NULL;
-	        SDL_Close(X);
+	        SDL_Event E;
+	        register bool Quit = false;
+
+	        /*
+			if(gLoop(X)){
+				Slide(X,1);
+				X->MCount++;
+			}
+			else{
+				break;
+			}
+			SDL_Print(X,Font);
+			break;
+			*/
+
+
+	        while(!Quit){
+		        while(!SDL_PollEvent(&E)){
+		        	if(E.type == SDL_QUIT){
+		        		Quit = true;
+		        	}
+		        	else{
+		        		if(E.type == SDL_KEYUP){
+		        			//make move com as setas
+
+		        		}
+		        		if(E.type == SDL_MOUSEBUTTONUP){
+		        			// fazer a translação
+		        		}
+		        	}
+		        }
+	        }
+	        TTF_CloseFont(Font); SDL_Close(X);
 	    }
 	}
-	*/
 }

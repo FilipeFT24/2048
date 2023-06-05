@@ -6,5 +6,6 @@ int main(void){
 
     srand(time(NULL));
 
-    gLoop  (&X);
+    GLoop  (&X);
+    return 0;
 }
