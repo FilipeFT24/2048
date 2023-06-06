@@ -14,7 +14,6 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
 #include "SDL.h"
 #include "SDL_ttf.h"
@@ -28,13 +27,15 @@ typedef struct Element{
 }E;
 typedef struct Matrix{
 	bool VMoves[4];
-	int  MValue;
+	bool Vgloop;
 	int  MCount;
-	int  Score;
+	int  MValue;
+	int  MScore;
 	int  m;
 	int  n;
 	struct Element* head;
 	struct Element* tail;
+	TTF_Font*       font;
 	SDL_Renderer*   sdlR;
 	SDL_Window*     sdlW;
 }M;
@@ -44,6 +45,4 @@ typedef struct Color{
     char b;
     char a;
 }COLOR;
-
-void CreateM(M*, int, int, int);
-void GLoop  (M*);
+void GLoop(M*, bool);

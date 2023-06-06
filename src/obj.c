@@ -1,10 +1,8 @@
 #include "../include/obj.h"
 
-// 'Element' structure function(s).
+// 'Element' structure functions.
 static E* CreateE(int i, int j, int v){
-	// Allocate node (or element).
 	E* N = (E*)malloc(sizeof(E));
-	// Assign fields.
 	if(N != NULL){
 		N->i    = i;
 		N->j    = j;
@@ -12,20 +10,16 @@ static E* CreateE(int i, int j, int v){
 		N->prev = NULL;
 		N->next = NULL;
 	}
+	assert(N->i >= 0 && N->i < NumberOfRows);
+	assert(N->j >= 0 && N->j < NumberOfCols);
 	return N;
 }
 static void InsertE(M* X, int i, int j, int v){
-	// Create node (or element).
 	E* N = CreateE(i,j,v);
-	// Check...
-	assert(N->i >= 0 && N->i < X->m);
-	assert(N->j >= 0 && N->j < X->n);
-	// If empty...
 	if(X->head == NULL){
 		X->head = N;
 		X->tail = N;
 	}
-	// Else..
 	else{
 		E* A = X->head;
 		E* B = NULL;
@@ -39,22 +33,6 @@ static void InsertE(M* X, int i, int j, int v){
 		N->prev = B; B != NULL ? B->next = N : (X->head = N);
 		N->next = A; A != NULL ? A->prev = N : (X->tail = N);
 	}
-}
-// 'Matrix' structure function(s).
-void CreateM(M* X, int MValue, int m, int n){
-	// Assign fields.
-	for(register int j = 0; j < length(X->VMoves); j++){
-		X->VMoves[j] = false;
-	}
-	X->MValue = MValue; // Doubly linked list (DLL) fields.
-	X->MCount = 0;
-	X->Score  = 0;
-	X->m      = m;
-	X->n      = n;
-	X->head   = NULL;
-	X->tail   = NULL;
-	X->sdlR   = NULL;   // Graphics fields.
-	X->sdlW   = NULL;
 }
 /*
 static void Print(M X){
@@ -191,9 +169,14 @@ static void ValidW(M* X){
 static void AddH(M** X, E** A, E** B){
 	// Increment *B.v.
 	(*B)->v            = (*A)->v+(*B)->v;
+	(*X)->MScore      += (*B)->v;
 	// Detach and delete *A.
 	(*A)->prev != NULL ? (*A)->prev->next = (*A)->next : ((*X)->head = (*A)->next);
 	(*A)->next != NULL ? (*A)->next->prev = (*A)->prev : ((*X)->tail = (*A)->prev); free(*A); *A = (*B)->next;
+	// Update (if appropriate).
+	if((*X)->MValue < (*B)->v){
+		(*X)->MValue = (*B)->v;
+	}
 }
 static void AddN(M** X, E** A, E** B, int j){
 	// Repeat (routine)...
@@ -206,9 +189,14 @@ static void AddN(M** X, E** A, E** B, int j){
 static void AddS(M** X, E** A, E** B, int j){
 	// Increment *B.v.
 	(*B)->v            = (*A)->v+(*B)->v;
+	(*X)->MScore      += (*B)->v;
 	// Detach and delete *A.
 	(*A)->prev != NULL ? (*A)->prev->next = (*A)->next : ((*X)->head = (*A)->next);
 	(*A)->next != NULL ? (*A)->next->prev = (*A)->prev : ((*X)->tail = (*A)->prev); free(*A); *A = (*B)->prev;
+	// Update (if appropriate).
+	if((*X)->MValue < (*B)->v){
+		(*X)->MValue = (*B)->v;
+	}
 	// Set to...
 	while(*A != NULL && (*A)->j != j){
 		*A = (*A)->prev;
@@ -380,69 +368,6 @@ static void SlideW(M* X){
 		}
 	}
 }
-static bool gLoop(M* X){
-	// Initialise...
-	register int i = 0, j = 0, k = 0, l = 0; register bool bflag = false; E* A = NULL;
-	register int c = 0, n = 0;
-	if(X->MCount == 0){
-		n = 2; // Start (or beggining) of the game.
-	}
-	else{
-		n = 1; // Otherwise.
-	}
-	for(A = X->head; A != NULL; A = A->next){
-		c++;
-	}
-	for(i = 0; i < n; i++){
-		if(c < NumberOfCols*NumberOfRows){
-			A = X->head;
-			j = 0;
-			k = 0;
-			l = rand()%(NumberOfCols*NumberOfRows-c);
-			while(j <= l){
-				if(A != NULL && k == X->n*A->i+A->j){
-					A = A->next;
-				}
-				else{
-					j++;
-				}
-				k++;
-			}
-			InsertE(X,(k-1)/NumberOfCols,(k-1)%NumberOfCols,rand()%2 ? 2:4);
-		}
-		c++;
-	}
-	// Check valid moves...
-	for(i = 0; i < length(X->VMoves); i++){
-		X->VMoves[i] = false;
-	}
-	ValidN(X);
-	ValidS(X);
-	ValidE(X);
-	ValidW(X);
-	for(i = 0; i < length(X->VMoves); i++){
-		if(X->VMoves[i]){
-			bflag = true;
-			break;
-		}
-	}
-	return bflag;
-}
-static void Slide(M* X, int C){
-	switch(C){
-		case 0: SlideN(X); // Up.
-			break;
-		case 1: SlideS(X); // Down.
-			break;
-		case 2: SlideE(X); // To the right.
-			break;
-		case 3: SlideW(X); // To the left.
-			break;
-		default:
-			return;
-	}
-}
-
 // Graphics function(s).
 SDL_Color Bc [] = {
 	{187,173,160,255}
@@ -475,6 +400,10 @@ COLOR TBc[] = {
 	{237,197, 63,255}, //  1024.
 	{237,194, 46,255}  //  2048.
 };
+static void SDL_Clear(M* X){
+	SDL_SetRenderDrawColor(X->sdlR,Bc[0].r,Bc[0].g,Bc[0].b,Bc[0].a);
+    SDL_RenderClear       (X->sdlR);
+}
 static bool SDL_Open(M* X){
 	bool bflag = false;
 	if(TTF_Init() < 0){
@@ -495,8 +424,7 @@ static bool SDL_Open(M* X){
 					printf("Failed to create renderer: %s\n",SDL_GetError());
 				}
 				else{
-					SDL_SetRenderDrawColor(X->sdlR,Bc[0].r,Bc[0].g,Bc[0].b,Bc[0].a);
-					bflag = true;
+					SDL_Clear(X); bflag = true;
 				}
 			}
 		}
@@ -504,106 +432,211 @@ static bool SDL_Open(M* X){
 	return bflag;
 }
 static void SDL_Close(M* X){
-	SDL_DestroyWindow(X->sdlW);X->sdlW = NULL;
-    TTF_Quit();
+	TTF_CloseFont    (X->font); X->font = NULL;
+	TTF_Quit();
+	SDL_DestroyWindow(X->sdlW); X->sdlW = NULL;
 	SDL_Quit();
 }
-static void SDL_Fill(M* X, TTF_Font* Font, const char* Text, SDL_Rect r, SDL_Color Color){
-    SDL_Surface* SurfMessage = TTF_RenderText_Blended      (Font,Text,Color);
-    SDL_Texture*     Message = SDL_CreateTextureFromSurface(X->sdlR,SurfMessage);
-    SDL_Rect MessageR;
-    TTF_SizeText      (Font,Text,&MessageR.w,&MessageR.h);
+static void SDL_Print(M* X){
+	// Clear board.
+	SDL_Clear(X);
+	//
 
-    MessageR.x = r.x+r.w/2-MessageR.w/2;
-    MessageR.y = r.y+r.h/2-MessageR.h/2;
 
-    SDL_RenderCopy    (X->sdlR,Message,NULL,&MessageR);
-    SDL_DestroyTexture(    Message);
-    SDL_FreeSurface   (SurfMessage);
-}
-
-static void SDL_Print(M* X, TTF_Font* Font){
     char str[MAXSIZE];
     int k = 0;
 
-    SDL_Rect sq;
+    SDL_Rect R1, R2;
+
+
 
 	E* A = X->head;
-    for(int i = 0; i < X->m; i++){
-    	for(int j = 0; j < X->n; j++){
-    		// Square dimensions.
-    	    sq.x = SCREEN_PAD+j*(sizeW+SCREEN_PAD);
-    	    sq.y = SCREEN_PAD+i*(sizeH+SCREEN_PAD);
-    	    sq.w = sizeW;
-    	    sq.h = sizeH;
-    	    // Render square.
+    for(register int i = 0; i < X->m; i++){
+    	for(register int j = 0; j < X->n; j++){
+    	    R1.x = SCREEN_PAD+j*(sizeW+SCREEN_PAD);
+    	    R1.y = SCREEN_PAD+i*(sizeH+SCREEN_PAD);
+    	    R1.w = sizeW;
+    	    R1.h = sizeH;
+
+
+
     		if(A != NULL && (A->i == i && A->j == j)){
     			k = log2(A->v);
-    			sprintf(str,"%d",A->v);
-
         	    SDL_SetRenderDrawColor(X->sdlR,TBc[k].r,TBc[k].g,TBc[k].b,TBc[k].a);
-        	    SDL_RenderFillRect    (X->sdlR,&sq);
-    			SDL_Fill              (X,Font,str,sq,TVc[k]);
+        	    SDL_RenderFillRect    (X->sdlR,&R1);
 
-    			A = A->next;
+
+        	    sprintf(str,"%d",A->v);
+        	    SDL_Surface* SM = TTF_RenderText_Blended      (X->font,str,TVc[k]);
+        	    SDL_Texture*  M = SDL_CreateTextureFromSurface(X->sdlR,SM);
+        	    A = A->next;
+
+        	    TTF_SizeText      (X->font,str,&R2.w,&R2.h);
+
+        	    R2.x = R1.x+R1.w/2-R2.w/2;
+        	    R2.y = R1.y+R1.h/2-R2.h/2;
+
+        	    SDL_RenderCopy    (X->sdlR,M,NULL,&R2);
+        	    SDL_DestroyTexture( M);
+        	    SDL_FreeSurface   (SM);
     		}
     		else{
         	    SDL_SetRenderDrawColor(X->sdlR,TBc[0].r,TBc[0].g,TBc[0].b,TBc[0].a);
-        	    SDL_RenderFillRect    (X->sdlR,&sq);
+        	    SDL_RenderFillRect    (X->sdlR,&R1);
     		}
     	}
     }
     SDL_RenderPresent(X->sdlR);
-    SDL_Delay(2000);
 }
-void GLoop(M* X){
+static void gLoop(M* X, int n){
+	E* A = NULL;
+	register int i = 0, j = 0, k = 0, l = 0;
+	register int c = 0;
+	for(A = X->head; A != NULL; A = A->next){
+		c++;
+	}
+	for(i = 0; i < n; i++){
+		if(c < NumberOfCols*NumberOfRows){
+			A = X->head;
+			j = 0;
+			k = 0;
+			l = rand()%(NumberOfCols*NumberOfRows-c);
+			while(j <= l){
+				if(A != NULL && k == X->n*A->i+A->j){
+					A = A->next;
+				}
+				else{
+					j++;
+				}
+				k++;
+			}
+			InsertE(X,(k-1)/NumberOfCols,(k-1)%NumberOfCols,rand()%2 ? 2:4);
+		}
+		c++;
+	}
+	X->Vgloop = false;
+	for(i = 0; i < length(X->VMoves); i++){
+		X->VMoves[i] = false;
+	}
+	ValidN(X);
+	ValidS(X);
+	ValidE(X);
+	ValidW(X);
+	for(i = 0; i < length(X->VMoves); i++){
+		if(X->VMoves[i]){
+			X->Vgloop = true;
+			break;
+		}
+	}
+	SDL_Print(X);
+}
+void GLoop(M* X, bool randM){
 	if(!SDL_Open(X)){
 		exit(0);
 	}
 	else{
-		TTF_Font* Font = TTF_OpenFont("ClearSans-Bold.ttf",65);
-	    if(Font == NULL){
+		X->font = TTF_OpenFont("ClearSans-Bold.ttf",50);
+	    if(X->font == NULL){
 	    	printf("Couldn't initialize SDL TTF: %s\n",SDL_GetError()); exit(1);
 	    }
 	    else{
-	    	// Clear.
-	        SDL_SetRenderDrawColor(X->sdlR,Bc[0].r,Bc[0].g,Bc[0].b,Bc[0].a);
-	        SDL_RenderClear       (X->sdlR);
-
-
-	        SDL_Event E;
-	        register bool Quit = false;
-
-	        /*
-			if(gLoop(X)){
-				Slide(X,1);
-				X->MCount++;
+	        gLoop(X,2);
+			for(E* A = X->head; A != NULL; A = A->next){
+				if(A->v > X->MValue){
+					X->MValue = A->v;
+				}
 			}
-			else{
-				break;
-			}
-			SDL_Print(X,Font);
-			break;
-			*/
-
-
-	        while(!Quit){
-		        while(!SDL_PollEvent(&E)){
-		        	if(E.type == SDL_QUIT){
-		        		Quit = true;
-		        	}
-		        	else{
-		        		if(E.type == SDL_KEYUP){
-		        			//make move com as setas
-
-		        		}
-		        		if(E.type == SDL_MOUSEBUTTONUP){
-		        			// fazer a translação
-		        		}
-		        	}
-		        }
+	        if(!randM){
+	        	register  bool Key  = false;
+	        	register  bool Quit = !X->Vgloop;
+	        	SDL_Event EV;
+	        	while(!Quit && X->MValue < MaximumValue){
+	        		while(SDL_PollEvent(&EV)){
+	        			switch(EV.type){
+	        				case SDL_QUIT:
+	        					Quit = true;
+	        					break;
+	        				case SDL_KEYUP:
+	        					Key = false;
+		        				switch(EV.key.keysym.sym){
+		        					case SDLK_UP:
+		        	        			Key = X->VMoves[0];
+		        	        			if(Key){
+		        	        				SlideN(X);
+		        	        			}
+		        						break;
+		        					case SDLK_DOWN:
+		        	        			Key = X->VMoves[1];
+		        	        			if(Key){
+		        	        				SlideS(X);
+		        	        			}
+		        						break;
+		        					case SDLK_RIGHT:
+		        	        			Key = X->VMoves[2];
+		        	        			if(Key){
+		        	        				SlideE(X);
+		        	        			}
+		        						break;
+		        					case SDLK_LEFT:
+		        	        			Key = X->VMoves[3];
+		        	        			if(Key){
+		        	        				SlideW(X);
+		        	        			}
+		        						break;
+		        					default:;
+		        				}
+			        			if(Key){
+			        				gLoop(X,1);
+			        				if(!X->Vgloop){
+			        					Quit = true;
+			        					break;
+			        				}
+			        			}
+	        					break;
+	        				default:
+	        					break;
+	        			}
+	        		}
+	        	}
 	        }
-	        TTF_CloseFont(Font); SDL_Close(X);
+	        else{
+	        	register int c = 0;
+	        	register int i = 0, j = 0, k = 0;
+	        	while(X->Vgloop && X->MValue < MaximumValue){
+        			c = 0;
+        			i = 0, j = 0, k = 0;
+        			for(i = 0; i < length(X->VMoves); i++){
+        				if(X->VMoves[i]){
+        					c++;
+        				}
+        			}
+        			k = rand()%c;
+        			for(i = 0; i < length(X->VMoves) && j < k+1; i++){
+        				if(X->VMoves[i]){
+        					j++;
+        				}
+        			}
+        			i--;
+        			switch(i){
+    	        		case 0:
+    	        			SlideN(X);
+    	        			break;
+    	        		case 1:
+    	        			SlideS(X);
+    	        			break;
+    	        		case 2:
+    	        			SlideE(X);
+    	        			break;
+    	        		case 3:
+    	        			SlideW(X);
+    	        			break;
+    	        		default:
+    	        			break;
+        			}
+        			gLoop(X,1); SDL_Delay(0125);
+	        	}
+	        }
+	        SDL_Close(X);
 	    }
 	}
 }
